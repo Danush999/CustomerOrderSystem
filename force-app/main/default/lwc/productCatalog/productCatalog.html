@@ -1,0 +1,197 @@
+<!-- Product Catalog Component - What customers see -->
+<template>
+    <!-- Main container card -->
+    <lightning-card title="🛍️ Product Catalog" icon-name="standard:product">
+        
+        <!-- Search section -->
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <lightning-input 
+                type="search" 
+                label="Search Products" 
+                placeholder="Search for products..."
+                value={searchTerm}
+                onchange={handleSearch}
+                class="slds-m-bottom_small">
+            </lightning-input>
+            
+            <!-- Filter checkbox -->
+            <lightning-input 
+                type="checkbox" 
+                label="Show only products in stock" 
+                checked={showInStockOnly}
+                onchange={handleStockFilter}>
+            </lightning-input>
+        </div>
+        
+        <!-- Loading spinner -->
+        <div if:true={isLoading} class="slds-p-medium slds-text-align_center">
+            <lightning-spinner alternative-text="Loading products..." size="medium"></lightning-spinner>
+            <p class="slds-m-top_small">Loading awesome products...</p>
+        </div>
+        
+        <!-- Error message -->
+        <div if:true={error} class="slds-p-medium">
+            <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error" role="alert">
+                <span class="slds-assistive-text">Error</span>
+                <h2>😔 Oops! Something went wrong</h2>
+                <p>{error}</p>
+                <lightning-button 
+                    variant="neutral" 
+                    label="Try Again"
+                    onclick={handleRefresh}
+                    class="slds-m-top_small">
+                </lightning-button>
+            </div>
+        </div>
+        
+        <!-- No products message -->
+        <div if:true={showNoProducts} class="slds-p-medium slds-text-align_center">
+            <div class="slds-illustration slds-illustration_small">
+                <div class="slds-text-heading_medium slds-p-top_medium">
+                    🔍 No products found
+                </div>
+                <div class="slds-text-body_regular slds-text-color_weak">
+                    Try adjusting your search or filters
+                </div>
+            </div>
+        </div>
+        
+        <!-- Products grid -->
+        <div if:true={hasProducts} class="slds-p-horizontal_medium">
+            <!-- Products count -->
+            <div class="slds-m-bottom_medium">
+                <span class="slds-text-body_small slds-text-color_weak">
+                    Showing {products.length} products
+                </span>
+            </div>
+            
+            <!-- Product cards grid -->
+            <div class="slds-grid slds-wrap slds-gutters">
+                <!-- Loop through each product -->
+                <template for:each={products} for:item="product">
+                    <div key={product.Id} class="slds-col slds-size_1-of-3 slds-p-bottom_medium">
+                        
+                        <!-- Individual product card -->
+                        <lightning-card class="product-card slds-card_boundary">
+                            
+                            <!-- Product image placeholder -->
+                            <div class="slds-p-horizontal_medium slds-p-top_medium slds-text-align_center">
+                                <div class="product-image-placeholder slds-box slds-theme_shade slds-p-vertical_large">
+                                    <lightning-icon 
+                                        icon-name="standard:product" 
+                                        size="large"
+                                        variant="inverse">
+                                    </lightning-icon>
+                                </div>
+                            </div>
+                            
+                            <!-- Product details -->
+                            <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+                                
+                                <!-- Product name -->
+                                <h3 class="slds-text-heading_small slds-m-bottom_x-small">
+                                    {product.Name}
+                                </h3>
+                                
+                                <!-- Price -->
+                                <div class="slds-text-heading_medium slds-text-color_success slds-m-bottom_x-small">
+                                    <lightning-formatted-number 
+                                        value={product.Price__c} 
+                                        format-style="currency"
+                                        currency-code="USD">
+                                    </lightning-formatted-number>
+                                </div>
+                                
+                                <!-- Stock status badge -->
+                                <div class="slds-m-bottom_x-small">
+                                    <template if:true={product.hasStock}>
+                                        <span class="slds-badge slds-theme_success">
+                                            📦 In Stock ({product.Stock_Quantity__c})
+                                        </span>
+                                    </template>
+                                    <template if:false={product.hasStock}>
+                                        <span class="slds-badge slds-theme_error">
+                                            ❌ Out of Stock
+                                        </span>
+                                    </template>
+                                </div>
+                                
+                                <!-- Description -->
+                                <div class="slds-text-body_small slds-text-color_weak slds-m-bottom_medium">
+                                    {product.Description__c}
+                                </div>
+                                
+                                <!-- Quantity and Add to Cart section -->
+                                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end">
+                                    
+                                    <!-- Quantity selector -->
+                                    <div class="slds-col slds-size_2-of-5">
+                                        <lightning-input 
+                                            type="number" 
+                                            label="Quantity" 
+                                            value="1"
+                                            min="1"
+                                            max={product.Stock_Quantity__c}
+                                            data-product-id={product.Id}
+                                            onchange={handleQuantityChange}
+                                            variant="label-stacked"
+                                            class="quantity-input">
+                                        </lightning-input>
+                                    </div>
+                                    
+                                    <!-- Add to cart button -->
+                                    <div class="slds-col slds-size_3-of-5 slds-text-align_right">
+                                        <lightning-button 
+                                            variant="brand" 
+                                            label="Add to Cart"
+                                            icon-name="utility:cart"
+                                            data-product-id={product.Id}
+                                            onclick={handleAddToCart}
+                                            disabled={product.isOutOfStock}
+                                            class="add-to-cart-btn">
+                                        </lightning-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </lightning-card>
+                    </div>
+                </template>
+            </div>
+        </div>
+        
+        <!-- Shopping cart summary (shows when items in cart) -->
+        <div if:true={hasCartItems} class="slds-card__footer slds-p-medium slds-border_top">
+            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                <div class="slds-col">
+                    <div class="slds-text-heading_small">
+                        🛒 Cart: {cartItemCount} items
+                    </div>
+                    <div class="slds-text-body_small slds-text-color_weak">
+                        Total: <lightning-formatted-number 
+                                 value={cartTotal} 
+                                 format-style="currency"
+                                 currency-code="USD">
+                               </lightning-formatted-number>
+                    </div>
+                </div>
+                <div class="slds-col slds-no-flex">
+                    <lightning-button-group>
+                        <lightning-button 
+                            variant="neutral" 
+                            label="View Cart"
+                            icon-name="utility:preview"
+                            onclick={handleViewCart}>
+                        </lightning-button>
+                        <lightning-button 
+                            variant="success" 
+                            label="Checkout"
+                            icon-name="utility:success"
+                            onclick={handleCheckout}>
+                        </lightning-button>
+                    </lightning-button-group>
+                </div>
+            </div>
+        </div>
+        
+    </lightning-card>
+</template>
